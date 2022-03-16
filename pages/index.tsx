@@ -25,7 +25,7 @@ const Home: NextPage = () => {
   const [info, setInfo] = useState("");
 
   const fetchGame = async () => {
-    const res = await fetch("http://35.224.173.125/");
+    const res = await fetch("/api/game");
     const data = await res.json();
     console.log(data);
 
