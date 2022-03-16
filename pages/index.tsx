@@ -27,7 +27,6 @@ const Home: NextPage = () => {
   const fetchGame = async () => {
     const res = await fetch("/api/game");
     const data = await res.json();
-    console.log(data);
 
     setGameData(data);
   };
