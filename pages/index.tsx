@@ -87,14 +87,11 @@ const Home: NextPage = () => {
   }, [gameData]);
 
   const prevHandler = useCallback(() => {
-    console.log(currentMoves.length, "<=", 0);
     if (currentMoves.length <= 0) return;
     setCurrentMoves((m: string[]) => moveHandler(m, "prev"));
   }, [currentMoves.length]);
 
   const nextHandler = useCallback(() => {
-    console.log(currentMoves.length, ">=", moves.length);
-    console.log("current", currentMoves.length);
     if (currentMoves.length >= moves.length) return;
     setCurrentMoves((m: string[]) => moveHandler(m, "next"));
   }, [currentMoves.length, moves.length]);
@@ -103,7 +100,6 @@ const Home: NextPage = () => {
     current: string[] | number,
     option: "next" | "prev" | "target"
   ) => {
-    console.log("current", currentMoves.length);
     const copyAll = [...moves];
 
     if (option === "prev" && Array.isArray(current)) {
@@ -111,10 +107,10 @@ const Home: NextPage = () => {
     } else if (option === "next" && Array.isArray(current)) {
       copyAll.length = current.length + 1;
     } else if (option === "target" && Number.isInteger(current)) {
-      console.log(current);
+     
       copyAll.length = current as number;
     }
-    console.log(moves);
+ 
     const parsed = copyAll
       .map((e: any) => {
         return `${e.move_number ? `${e.move_number}.` : ""} ${e.move}`;
@@ -123,7 +119,7 @@ const Home: NextPage = () => {
 
     game?.load_pgn(parsed);
     setFen(game?.fen());
-    console.log(copyAll.length);
+  
     return copyAll;
   };
 
@@ -141,7 +137,7 @@ const Home: NextPage = () => {
   const submitHandler = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!elo || elo > 3500 || elo <= 0) return;
-    console.log(typeof elo);
+ 
     const result = getResult(elo as number);
     setInfo(result);
   };
@@ -154,10 +150,10 @@ const Home: NextPage = () => {
 
   useEffect(() => {
     const arrowNavigation = (e: KeyboardEvent) => {
-      console.log("okok");
-      console.log(e.key);
+     
+
       if (e.key === "ArrowLeft") {
-        console.log("left");
+      
         prevHandler();
       } else if (e.key === "ArrowRight") {
         nextHandler();
