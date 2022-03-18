@@ -1,6 +1,5 @@
 import type { NextPage } from "next";
 import React, {
-  ReactFragment,
   useCallback,
   useEffect,
   useRef,
@@ -39,6 +38,8 @@ const Home: NextPage = () => {
   const [info, setInfo] = useState<Info>();
   const [showMoves, setShowMoves] = useState(true);
   const matchResult = useRef("");
+  const [admin, setAdmin] = useState<string>();
+  const [withChat, setWithChat] = useState(false);
 
   const fetchGame = async () => {
     const res = await fetch("/api/game");
@@ -47,8 +48,25 @@ const Home: NextPage = () => {
     setGameData(data);
   };
 
+  const gameWithChat = async (option: "vs" | "ve", elo?: number) => {
+    try {
+      console.log(JSON.stringify({ code: admin, elo: elo || "", option }));
+      const r = await fetch("/api/bot", {
+        method: "POST",
+        body: JSON.stringify({ code: admin, elo: elo || "", option }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      const d = await r.json();
+      console.log(d, "aaa");
+    } catch (error) {}
+  };
+
   useEffect(() => {
     fetchGame();
+
+    setAdmin(document.cookie.split("=")[1]);
   }, []);
 
   useEffect(() => {
@@ -107,10 +125,9 @@ const Home: NextPage = () => {
     } else if (option === "next" && Array.isArray(current)) {
       copyAll.length = current.length + 1;
     } else if (option === "target" && Number.isInteger(current)) {
-     
       copyAll.length = current as number;
     }
- 
+
     const parsed = copyAll
       .map((e: any) => {
         return `${e.move_number ? `${e.move_number}.` : ""} ${e.move}`;
@@ -119,7 +136,7 @@ const Home: NextPage = () => {
 
     game?.load_pgn(parsed);
     setFen(game?.fen());
-  
+
     return copyAll;
   };
 
@@ -137,8 +154,11 @@ const Home: NextPage = () => {
   const submitHandler = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!elo || elo > 3500 || elo <= 0) return;
- 
+
     const result = getResult(elo as number);
+    if (withChat) {
+      gameWithChat("ve", result?.avgElo);
+    }
     setInfo(result);
   };
 
@@ -146,14 +166,14 @@ const Home: NextPage = () => {
     setElo("");
     setInfo(undefined);
     await fetchGame();
+    if (withChat) {
+      gameWithChat("vs");
+    }
   };
 
   useEffect(() => {
     const arrowNavigation = (e: KeyboardEvent) => {
-     
-
       if (e.key === "ArrowLeft") {
-      
         prevHandler();
       } else if (e.key === "ArrowRight") {
         nextHandler();
@@ -174,23 +194,17 @@ const Home: NextPage = () => {
           <div ref={gameElement} className="w-full">
             {fen && <Chessboard boardWidth={boardWidth} position={fen} />}
           </div>
-          <div className="flex">
-            {currentMoves.length > 0 && (
-              <button
-                className="px-6 py-3 mx-2 bg-black text-white flex-1"
-                onClick={prevHandler}
-              >
-                prev
+          <div className="flex mt-2">
+            {currentMoves.length > 0 ? (
+              <button className="px-6 py-3 mx-2 main-btn" onClick={prevHandler}>
+                Prev
               </button>
-            )}
-            {currentMoves.length < moves.length && (
-              <button
-                className="px-6 py-3 bg-black mx-2 text-white flex-1"
-                onClick={nextHandler}
-              >
-                next
+            ) : <div className="flex-1"></div>}
+            {currentMoves.length < moves.length ?  (
+              <button className="px-6 py-3 mx-2 main-btn" onClick={nextHandler}>
+                Next
               </button>
-            )}
+            ) : <div className="flex-1"></div>}
           </div>
         </div>
 
@@ -199,21 +213,27 @@ const Home: NextPage = () => {
             <h3 className="font-bold text-xl">Guess the ELO</h3>
             {info ? (
               <>
-                <p className="text-lg my-1">Your score is {info.score}/5000</p>
-                <p className="text-lg mb-1">You guessed {elo}. The correct elo is {info.avgElo}</p>
-                <a
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-bold underline mb-2 block text-lg"
-                  href={gameData?.game_url}
-                >
-                  game
-                </a>
+                <p className="text-lg my-1">Your score is <span className="font-bold">{info.score}/5000</span></p>
+                <p className="text-lg mb-1">
+                  You guessed <span className="font-bold">{elo}</span>. The correct elo is <span className="font-bold">{info.avgElo}</span>
+                </p>
+                <span>
+                  Checkout the{" "}
+                  <a
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-bold underline mb-2 text-lg inline-flex"
+                    href={gameData?.game_url}
+                  >
+                    game on chess.com!
+                  </a>
+                </span>
+
                 <button
                   onClick={newGameHandler}
-                  className="text-white bg-black py-2 px-4 mt-2 w-full"
+                  className=" main-btn py-2 px-4 mt-2 w-full"
                 >
-                  new game
+                  New Game
                 </button>
               </>
             ) : (
@@ -231,8 +251,8 @@ const Home: NextPage = () => {
                     onChange={(e) => setElo(+e.target.value)}
                   />
                 </div>
-                <button className="text-white bg-black py-2 px-4 mt-2 w-full">
-                  submit
+                <button className=" main-btn py-2 px-4 mt-2 w-full">
+                  Submit
                 </button>
               </form>
             )}
@@ -272,10 +292,25 @@ const Home: NextPage = () => {
 
             <button
               onClick={() => setShowMoves((s) => !s)}
-              className="text-white bg-black py-2 px-4 mt-2 w-full"
+              className="main-btn py-2 px-4 mt-2 w-full"
             >
-              {showMoves ? "hide moves" : "show moves"}
+              {showMoves ? "Hide Moves" : "Show Moves"}
             </button>
+            {admin && (
+              <button
+                className="text-white opacity-90 duration-300 hover:opacity-75 border-2 transition-opacity  py-2 px-4 mt-2 w-full"
+                onClick={() => {
+                  setWithChat((w) => {
+                    if (!w) {
+                      gameWithChat("vs");
+                    }
+                    return !w;
+                  });
+                }}
+              >
+                {withChat ? "User Mode" : "Streamer Mode"}
+              </button>
+            )}
           </div>
         </div>
       </div>
