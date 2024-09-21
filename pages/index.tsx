@@ -5,9 +5,10 @@ import React, {
   useRef,
   useState,
 } from "react";
-import Chess, { ChessInstance } from "chess.js";
+import { Chess } from 'chess.js'
 import pgnParser from "pgn-parser";
 import { Chessboard } from "react-chessboard";
+import { useQuery } from "@tanstack/react-query";
 
 type Game = {
   pgn: string;
@@ -26,20 +27,36 @@ type Moves = {
   move_number?: number;
 };
 
+async function fetchRandomGame() {
+  const res = await fetch("/api/game");
+  if (!res.ok) throw Error("Unknown fetch error")
+  const data = await res.json();
+
+  return data as Game
+}
+
+function useRandomGame() {
+  const query = useQuery({
+    queryKey: ['random-game'],
+    queryFn: fetchRandomGame
+  })
+
+  return query
+}
+
 const Home: NextPage = () => {
+  // TODO: better name
+  const [game] = useState(new Chess());
+
   const [gameData, setGameData] = useState<Game>();
-  const [game, setGame] = useState<ChessInstance>();
   const [moves, setMoves] = useState<Moves[]>([]);
   const [currentMoves, setCurrentMoves] = useState<any>([]);
   const [fen, setFen] = useState<any>();
   const gameElement = useRef<HTMLDivElement>(null);
-  const [boardWidth, setBoardWidth] = useState(0);
   const [elo, setElo] = useState<number | "">("");
   const [info, setInfo] = useState<Info>();
   const [showMoves, setShowMoves] = useState(true);
   const matchResult = useRef("");
-  const [admin, setAdmin] = useState<string>();
-  const [withChat, setWithChat] = useState(false);
 
   const fetchGame = async () => {
     const res = await fetch("/api/game");
@@ -48,59 +65,19 @@ const Home: NextPage = () => {
     setGameData(data);
   };
 
-  const gameWithChat = async (option: "vs" | "ve", elo?: number) => {
-    try {
-      console.log(JSON.stringify({ code: admin, elo: elo || "", option }));
-      const r = await fetch("/api/bot", {
-        method: "POST",
-        body: JSON.stringify({ code: admin, elo: elo || "", option }),
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-      const d = await r.json();
-      console.log(d, "aaa");
-    } catch (error) {}
-  };
-
   useEffect(() => {
     fetchGame();
-
-    setAdmin(document.cookie.split("=")[1]);
   }, []);
 
   useEffect(() => {
-    const changeWidth = () => {
-      if (gameElement.current) {
-        setBoardWidth(gameElement.current.offsetWidth);
-      }
-    };
-
-    changeWidth();
-
-    window.addEventListener("resize", changeWidth);
-    return () => {
-      window.removeEventListener("resize", changeWidth);
-    };
-  }, [showMoves]);
-
-  useEffect(() => {
     if (gameData) {
-      const [result, a] = pgnParser.parse(gameData.pgn);
+      const [result] = pgnParser.parse(gameData.pgn);
       matchResult.current = result.result;
       setMoves(result.moves);
       setCurrentMoves([]);
 
-      const p = result.moves
-        .map((e) => {
-          return `${e.move_number ? `${e.move_number}.` : ""} ${e.move}`;
-        })
-        .join(" ");
-      const ch = new Chess();
-      ch.load_pgn("");
-      setFen(ch.fen());
-
-      setGame(ch);
+      game.loadPgn("");
+      setFen(game.fen());
     }
   }, [gameData]);
 
@@ -134,8 +111,8 @@ const Home: NextPage = () => {
       })
       .join(" ");
 
-    game?.load_pgn(parsed);
-    setFen(game?.fen());
+    game.loadPgn(parsed);
+    setFen(game.fen());
 
     return copyAll;
   };
@@ -156,9 +133,6 @@ const Home: NextPage = () => {
     if (!elo || elo > 3500 || elo <= 0) return;
 
     const result = getResult(elo as number);
-    if (withChat) {
-      gameWithChat("ve", result?.avgElo);
-    }
     setInfo(result);
   };
 
@@ -166,9 +140,6 @@ const Home: NextPage = () => {
     setElo("");
     setInfo(undefined);
     await fetchGame();
-    if (withChat) {
-      gameWithChat("vs");
-    }
   };
 
   useEffect(() => {
@@ -192,7 +163,7 @@ const Home: NextPage = () => {
       <div className="container mx-auto flex flex-col max-w-[600px]  lg:flex-row lg:max-w-[1100px]">
         <div className="w-full">
           <div ref={gameElement} className="w-full">
-            {fen && <Chessboard boardWidth={boardWidth} position={fen} />}
+            {fen && <Chessboard position={fen} />}
           </div>
           <div className="flex mt-2">
             {currentMoves.length > 0 ? (
@@ -200,7 +171,7 @@ const Home: NextPage = () => {
                 Prev
               </button>
             ) : <div className="flex-1"></div>}
-            {currentMoves.length < moves.length ?  (
+            {currentMoves.length < moves.length ? (
               <button className="px-6 py-3 mx-2 main-btn" onClick={nextHandler}>
                 Next
               </button>
@@ -273,9 +244,8 @@ const Home: NextPage = () => {
                           )
                         }
                         key={index}
-                        className={`px-1 hover:bg-slate-200 font-bold ${
-                          index + 1 === currentMoves.length && "bg-slate-500"
-                        }`}
+                        className={`px-1 hover:bg-slate-200 font-bold ${index + 1 === currentMoves.length && "bg-slate-500"
+                          }`}
                       >
                         {m.move}
                       </button>
@@ -296,21 +266,6 @@ const Home: NextPage = () => {
             >
               {showMoves ? "Hide Moves" : "Show Moves"}
             </button>
-            {admin && (
-              <button
-                className="text-white opacity-90 duration-300 hover:opacity-75 border-2 transition-opacity  py-2 px-4 mt-2 w-full"
-                onClick={() => {
-                  setWithChat((w) => {
-                    if (!w) {
-                      gameWithChat("vs");
-                    }
-                    return !w;
-                  });
-                }}
-              >
-                {withChat ? "User Mode" : "Streamer Mode"}
-              </button>
-            )}
           </div>
         </div>
       </div>
